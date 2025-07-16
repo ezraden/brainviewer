@@ -1,62 +1,84 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer';
+import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
+import { createPlanesAndLabels } from './planeSetup.js';
+import brainURL from './assets/full_brain_binary.stl?url';
 
-
+// Scene and Camera
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf0f0f0);
+scene.background = new THREE.Color(0x111111);
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 0, 100);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 1.5);
 
-const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('#webgl'), antialias: true });
+// Renderer
+const renderer = new THREE.WebGLRenderer({
+  canvas: document.querySelector('#webgl'),
+  antialias: true
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.xr.enabled = true; // ✅ Enable XR
 document.body.appendChild(renderer.domElement);
 
-// Add light
-const ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
-scene.add(ambientLight);
+// Add VR Button
+document.body.appendChild(VRButton.createButton(renderer));
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-directionalLight.position.set(1, 1, 1).normalize();
-scene.add(directionalLight);
+// CSS2D Renderer for Labels
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(window.innerWidth, window.innerHeight);
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0px';
+labelRenderer.domElement.style.pointerEvents = 'none';
+document.body.appendChild(labelRenderer.domElement);
 
-// Controls
+// Lighting
+scene.add(new THREE.AmbientLight(0x888888, 0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(1, 1, 1).normalize();
+scene.add(dirLight);
+
+// Orbit Controls for desktop
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
+// Load STL model
 const loader = new STLLoader();
+loader.load(brainURL, geometry => {
+  geometry.center();
 
-document.getElementById('fileInput').addEventListener('change', function (event) {
-  const file = event.target.files[0];
-  if (file) {
-    const reader = new FileReader();
+  const boundingBox = new THREE.Box3().setFromBufferAttribute(geometry.attributes.position);
+  const size = new THREE.Vector3();
+  boundingBox.getSize(size);
+  const width = size.x / 2;
+  const height = size.y / 2;
 
-    reader.onload = function (e) {
-      const arrayBuffer = e.target.result;
-      const geometry = loader.parse(arrayBuffer);
+  createPlanesAndLabels(scene, width, height);
 
-      const material = new THREE.MeshStandardMaterial({ color: 0x7f7fff, metalness: 0.3, roughness: 0.6 });
-      const mesh = new THREE.Mesh(geometry, material);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x7f7fff,
+    metalness: 0.2,
+    roughness: 0.5,
+    side: THREE.DoubleSide
+  });
 
-      geometry.center();
-      scene.add(mesh);
-    };
-
-    reader.readAsArrayBuffer(file);
-  }
+  const brainMesh = new THREE.Mesh(geometry, material);
+  scene.add(brainMesh);
 });
 
-function animate() {
-  requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
-}
-
-animate();
-
+// Handle resizing
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Animate
+renderer.setAnimationLoop(() => {
+  controls.update(); // only affects desktop
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
 });

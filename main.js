@@ -38,34 +38,32 @@ controls.enableDamping = true;
 controls.enablePan = true;
 controls.enableZoom = true;
 
-// Load STL automatically
+// Load STL model
 const loader = new STLLoader();
 loader.load(brainURL, geometry => {
   geometry.center();
 
-  // Calculate bounds for plane setup
   const boundingBox = new THREE.Box3().setFromBufferAttribute(geometry.attributes.position);
   const size = new THREE.Vector3();
   boundingBox.getSize(size);
+
   const width = size.x / 2;
   const height = size.y / 2;
 
-  // Add anatomical planes and labels
   createPlanesAndLabels(scene, width, height);
 
-  // Brain material
   const material = new THREE.MeshStandardMaterial({
     color: 0x7f7fff,
     metalness: 0.3,
     roughness: 0.6,
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
   });
 
   const brainMesh = new THREE.Mesh(geometry, material);
   scene.add(brainMesh);
 });
 
-// Animate
+// Animation loop
 function animate() {
   renderer.setAnimationLoop(() => {
     controls.update();
@@ -75,7 +73,7 @@ function animate() {
 }
 animate();
 
-// Resize
+// Handle resizing
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -83,7 +81,7 @@ window.addEventListener('resize', () => {
   labelRenderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Fullscreen on double-click
+// Toggle fullscreen on double click
 window.addEventListener('dblclick', () => {
   const canvas = renderer.domElement;
   if (!document.fullscreenElement) {

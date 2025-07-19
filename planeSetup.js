@@ -2,72 +2,78 @@
 
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/examples/jsm/Addons.js';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 
-export function createPlanesAndLabels(scene, width, height) {
-    // Materials for planes
-    const materialXY = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide, opacity: 0.3, transparent: true,
-        depthWrite: false,  // Avoids writing to the depth buffer for transparency
-        depthTest: true     // Ensures proper transparency rendering behind other objects
-    });
-    const materialXZ = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, opacity: 0.3, transparent: true,
-        depthWrite: false,  // Avoids writing to the depth buffer for transparency
-        depthTest: true     // Ensures proper transparency rendering behind other objects
-     });
-    const materialYZ = new THREE.MeshBasicMaterial({ color: 0x0000ff, side: THREE.DoubleSide, opacity: 0.3, transparent: true,
-        depthWrite: false,  // Avoids writing to the depth buffer for transparency
-        depthTest: true     // Ensures proper transparency rendering behind other objects
-     });
+export function createPlanesAndLabels(scene, camera, renderer, controls) {
+    // Materials
+    const materialXY = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide, opacity: 0.3, transparent: true });
+    const materialXZ = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, opacity: 0.3, transparent: true });
+    const materialYZ = new THREE.MeshBasicMaterial({ color: 0x0000ff, side: THREE.DoubleSide, opacity: 0.3, transparent: true });
 
     // Plane geometry
-    const planeGeometry = new THREE.PlaneGeometry(width * 2, height * 2);
+    const planeGeometry = new THREE.PlaneGeometry(200, 200);
 
-    // Create the planes
+    // Create planes
     const planeXY = new THREE.Mesh(planeGeometry, materialXY);
     const planeXZ = new THREE.Mesh(planeGeometry, materialXZ);
     const planeYZ = new THREE.Mesh(planeGeometry, materialYZ);
 
-    // Rotate the planes correctly
-    planeXY.rotation.z = 0;               // XY Plane (no rotation needed)
-    planeXZ.rotation.x = Math.PI / 2;      // XZ Plane (rotate 90° around X-axis)
-    planeYZ.rotation.y = Math.PI / 2;      // YZ Plane (rotate 90° around Y-axis)
+    planeXY.rotation.set(0, 0, 0);
+    planeXZ.rotation.set(Math.PI / 2, 0, 0);
+    planeYZ.rotation.set(0, Math.PI / 2, 0);
 
-    // Position planes correctly (keeping them centered at origin)
     planeXY.position.set(0, 0, 0);
     planeXZ.position.set(0, 0, 0);
     planeYZ.position.set(0, 0, 0);
 
-    // Add planes to the scene
-    scene.add(planeXY);
-    scene.add(planeXZ);
-    scene.add(planeYZ);
+    scene.add(planeXY, planeXZ, planeYZ);
 
-    // Function to create labels
+    // Labels
     function createLabel(text, position) {
         const labelDiv = document.createElement('div');
         labelDiv.className = 'label';
         labelDiv.style.position = 'absolute';
         labelDiv.style.color = 'white';
         labelDiv.style.fontSize = '20px';
-        labelDiv.style.pointerEvents = 'none'; // Ensure labels don't block interactions
+        labelDiv.style.pointerEvents = 'none';
         labelDiv.innerText = text;
 
-        const labelObject = new CSS2DObject(labelDiv);
-        labelObject.position.set(position.x, position.y, position.z);
-
-        return labelObject;
+        const label = new CSS2DObject(labelDiv);
+        label.position.copy(position);
+        return label;
     }
 
-    // Labels for X, Y, Z axes with proper spacing
-    const labelSpacing = 1.5; // Increased spacing for better readability
-    const labelX = createLabel('x', new THREE.Vector3(width + labelSpacing, 0, 0));  // Label for X at the edge of XY
-    const labelY = createLabel('y', new THREE.Vector3(0, height + labelSpacing, 0)); // Label for Y at the edge of XZ
-    const labelZ = createLabel('z', new THREE.Vector3(0, 0, width + labelSpacing));  // Label for Z at the edge of YZ
+    scene.add(
+        createLabel('x', new THREE.Vector3(101.5, 0, 0)),
+        createLabel('y', new THREE.Vector3(0, 101.5, 0)),
+        createLabel('z', new THREE.Vector3(0, 0, 101.5))
+    );
 
-    // Add the labels to the scene
-    scene.add(labelX);
-    scene.add(labelY);
-    scene.add(labelZ);
+    // TransformControls for rotation
+    const transformControlsXY = new TransformControls(camera, renderer.domElement);
+    transformControlsXY.attach(planeXY);
+    transformControlsXY.setMode('rotate');
+    scene.add(transformControlsXY);
+    transformControlsXY.addEventListener('dragging-changed', e => controls.enabled = !e.value);
 
-    // Return the planes so they can be controlled later (e.g., for visibility toggling)
-    return { planeXY, planeXZ, planeYZ };
+    const transformControlsXZ = new TransformControls(camera, renderer.domElement);
+    transformControlsXZ.attach(planeXZ);
+    transformControlsXZ.setMode('rotate');
+    scene.add(transformControlsXZ);
+    transformControlsXZ.addEventListener('dragging-changed', e => controls.enabled = !e.value);
+
+    const transformControlsYZ = new TransformControls(camera, renderer.domElement);
+    transformControlsYZ.attach(planeYZ);
+    transformControlsYZ.setMode('rotate');
+    scene.add(transformControlsYZ);
+    transformControlsYZ.addEventListener('dragging-changed', e => controls.enabled = !e.value);
+
+    return {
+        planeXY,
+        planeXZ,
+        planeYZ,
+        transformControlsXY,
+        transformControlsXZ,
+        transformControlsYZ
+    };
 }
